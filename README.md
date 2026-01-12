@@ -115,6 +115,24 @@ Special States (replace all layers):
 ├── plug.png + charging.png (when actively charging)
 └── plug.png (when cable plugged but not charging)
 ```
+### Source Image File
+
+The repository includes `tesla_UI_croppedWidth.psd`, a Photoshop document containing all the layered source images used to generate the individual PNG files. This PSD file includes:
+
+- Base car image layer
+- Individual door layers (FL, FR, RL, RR)
+- Combined door layer (FL+RL)
+- Trunk layers (base and overlay)
+- Frunk layer
+- Charging state layers
+- Driving state layer
+
+You can use this PSD file as a template to:
+- Modify colors or styling
+- Add custom visual effects
+- Generate additional special case combinations
+
+**Note:** The PSD file uses transparent layers. Export each layer individually as PNG with transparency enabled to maintain the overlay effect.
 
 ### Special Case: FL + RL Door Handling
 
