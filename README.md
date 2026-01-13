@@ -20,7 +20,7 @@ A custom Home Assistant card that displays real-time Tesla vehicle status using 
 - Layered image system for accurate door/trunk/frunk display
 - Charging status visualization (plugged in vs actively charging)
 - Driving mode detection
-- Offline/asleep state indication (60% opacity)
+- Offline state indication (60% opacity)
 - Special case handling for overlapping doors (FL + RL)
 - Configurable card dimensions and positioning
 
@@ -87,8 +87,15 @@ All images must be transparent PNG files placed in `/config/www/tesla_doors/`:
 | `rr.png` | Door overlay | Rear right door open (transparent overlay) |
 | `flrl.png` | Door overlay (special case) | Front left AND rear left doors open together |
 | `frunk.png` | Frunk overlay | Frunk open (transparent overlay) |
-| `plug.png` | Charging state | Charging cable plugged in |
-| `charging.png` | Charging state | Actively charging (animated or glowing effect) |
+| `plug.png` | Charging/plugged state | Charging cable plugged in (base when plugged) |
+| `frunk_base.png` | Charging/plugged state | Frunk open while plugged in (replaces plug.png) |
+| `plug_FL.png` | Plugged-in door overlay | Front left door open while plugged in |
+| `plug_FR.png` | Plugged-in door overlay | Front right door open while plugged in |
+| `plug_RL.png` | Plugged-in door overlay | Rear left door open while plugged in |
+| `plug_RR.png` | Plugged-in door overlay | Rear right door open while plugged in |
+| `plug_FLRL.png` | Plugged-in door overlay (special case) | Front left AND rear left doors open while plugged in |
+| `plug_trunk.png` | Plugged-in trunk overlay | Trunk open while plugged in |
+| `charging.png` | Charging state | Actively charging overlay (top layer with animation/glow effect) |
 | `driving.png` | Driving state | Vehicle in motion |
 
 ### Image Layer Logic
@@ -97,24 +104,56 @@ The card uses a layering system where images are stacked on top of each other:
 
 ```
 Bottom Layer (Base):
-├── trunk_base.png (if trunk is open)
-└── base.png (if trunk is closed)
+├── trunk_base.png (if trunk is open AND NOT plugged in)
+└── base.png (if trunk is closed AND NOT plugged in)
 
-Middle Layers (Doors):
+Middle Layers (Doors) - UNPLUGGED:
 ├── flrl.png (if BOTH front-left AND rear-left doors are open) *special case*
 ├── OR fl.png (if only front-left door is open)
 ├── OR rl.png (if only rear-left door is open)
 ├── fr.png (if front-right door is open)
 └── rr.png (if rear-right door is open)
 
-Top Layer:
+Top Layer - UNPLUGGED:
 └── frunk.png (if frunk is open)
 
-Special States (replace all layers):
-├── driving.png (when vehicle is in gear D/R/N)
-├── plug.png + charging.png (when actively charging)
-└── plug.png (when cable plugged but not charging)
+Special States:
+└── driving.png (when vehicle is in gear D/R/N - replaces all layers)
+
+Plugged-in State (not charging):
+Base Layer:
+├── frunk_base.png (if frunk is open while plugged in)
+└── plug.png (if frunk is closed while plugged in)
+
+Door Overlays (when plugged in):
+├── plug_FLRL.png (if BOTH front-left AND rear-left doors are open) *special case*
+├── OR plug_FL.png (if only front-left door is open)
+├── OR plug_RL.png (if only rear-left door is open)
+├── plug_FR.png (if front-right door is open)
+└── plug_RR.png (if rear-right door is open)
+
+Trunk Overlay (when plugged in):
+└── plug_trunk.png (if trunk is open)
+
+Charging State (actively charging):
+Base Layer:
+├── frunk_base.png (if frunk is open while charging)
+└── plug.png (if frunk is closed while charging)
+
+Door Overlays (when charging):
+├── plug_FLRL.png (if BOTH front-left AND rear-left doors are open) *special case*
+├── OR plug_FL.png (if only front-left door is open)
+├── OR plug_RL.png (if only rear-left door is open)
+├── plug_FR.png (if front-right door is open)
+└── plug_RR.png (if rear-right door is open)
+
+Trunk Overlay (when charging):
+├── plug_trunk.png (if trunk is open)
+
+Top Layer (when charging):
+└── charging.png (always displayed on top when actively charging)
 ```
+
 ### Source Image File
 
 The repository includes `tesla_UI_croppedWidth.psd`, a Photoshop document containing all the layered source images used to generate the individual PNG files. This PSD file includes:
@@ -124,10 +163,16 @@ The repository includes `tesla_UI_croppedWidth.psd`, a Photoshop document contai
 - Combined door layer (FL+RL)
 - Trunk layers (base and overlay)
 - Frunk layer
-- Charging state layers
+- Charging cable plugged state
+- Plugged-in door layers (plug_FL, plug_FR, plug_RL, plug_RR)
+- Plugged-in combined door layer (plug_FLRL)
+- Plugged-in trunk layer (plug_trunk)
+- Frunk base layer (for plugged-in state)
+- Charging state layer
 - Driving state layer
 
 You can use this PSD file as a template to:
+- Create images for different Tesla models (Model 3, Model X, Model S, Cybertruck)
 - Modify colors or styling
 - Add custom visual effects
 - Generate additional special case combinations
@@ -138,12 +183,21 @@ You can use this PSD file as a template to:
 
 **Rationale:** When both the front-left (FL) and rear-left (RL) doors are open simultaneously, using individual transparent overlays creates a visual overlap issue. Due to the window transparency in the PNG images, the RL door overlay shows through the FL door's window area, creating an unrealistic appearance.
 
-**Solution:** The `flrl.png` image is a single combined image showing both doors open without transparency overlap. This special case is automatically detected and used instead of layering `fl.png` + `rl.png`.
+**Solution:** The `flrl.png` and `plug_FLRL.png` images are single combined images showing both doors open without transparency overlap. These special cases are automatically detected and used instead of layering individual door overlays.
 
-**When it's used:**
+**When they're used:**
+
+**Unplugged state:**
 - Both `binary_sensor.mochi_front_driver_door` AND `binary_sensor.mochi_rear_driver_door` are in the "on" state
 - The card will use `flrl.png` instead of individual `fl.png` and `rl.png` overlays
 - Other doors (FR, RR) will still use individual overlays
+
+**Plugged-in/Charging state:**
+- Both `binary_sensor.mochi_front_driver_door` AND `binary_sensor.mochi_rear_driver_door` are in the "on" state
+- The vehicle is plugged in (with or without active charging)
+- The card will use `plug_FLRL.png` instead of individual `plug_FL.png` and `plug_RL.png` overlays
+- Other doors (FR, RR) will still use individual `plug_FR.png` and `plug_RR.png` overlays
+- When actively charging, `charging.png` is displayed on top of all layers
 
 ## State Display Logic
 
@@ -210,6 +264,7 @@ background: '#1a1a1a'    # Dark background
 - This is a known issue with Tesla Fleet API
 - The card uses TeslaMate MQTT sensors (`binary_sensor.tesla_trunk_open`, `binary_sensor.tesla_frunk_open`) which are more reliable
 - Ensure TeslaMate integration is properly configured
+- **Note:** TeslaMate sensors report states as `'open'`/`'closed'` (not `'on'`/`'off'` like typical binary sensors)
 
 ## Technical Details
 
