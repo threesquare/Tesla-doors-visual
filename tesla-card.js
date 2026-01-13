@@ -54,8 +54,9 @@ class TeslaCard extends HTMLElement {
     const trunkSensor = this._hass.states['binary_sensor.tesla_trunk_open'];
     
     // Convert TeslaMate binary sensors to cover-like state ('open' or 'closed')
-    const frunk = frunkSensor?.state === 'on' ? { state: 'open' } : { state: 'closed' };
-    const trunk = trunkSensor?.state === 'on' ? { state: 'open' } : { state: 'closed' };
+    // TeslaMate reports 'open'/'closed' not 'on'/'off'
+    const frunk = frunkSensor?.state === 'open' ? { state: 'open' } : { state: 'closed' };
+    const trunk = trunkSensor?.state === 'open' ? { state: 'open' } : { state: 'closed' };
     
     // Door sensors from Fleet
     const frontDriverDoor = this._hass.states['binary_sensor.mochi_front_driver_door'];
@@ -182,18 +183,122 @@ class TeslaCard extends HTMLElement {
 
     // Charging state (prioritize this over cable sensor)
     if (chargingState === 'charging') {
-      layers.push(`${base}/plug.png`);
-      console.log('Charging - added plug.png');
+      // Check door/trunk/frunk states
+      const trunkOpen = trunk === 'open';
+      const flOpen = fl === 'on';
+      const frOpen = fr === 'on';
+      const rlOpen = rl === 'on';
+      const rrOpen = rr === 'on';
+      const frunkOpen = frunk === 'open';
+
+      // Check if FL + RL are both open (special case to avoid overlap)
+      const flRlBothOpen = flOpen && rlOpen;
+
+      // Step 1: Select base image for charging state
+      if (frunkOpen) {
+        layers.push(`${base}/frunk_base.png`);
+        console.log('Charging - added frunk_base.png as base');
+      } else {
+        layers.push(`${base}/plug.png`);
+        console.log('Charging - added plug.png as base');
+      }
+
+      // Step 2: Add door overlays
+      // Special case: If both FL and RL are open, use plug_FLRL.png instead of individual overlays
+      if (flRlBothOpen) {
+        layers.push(`${base}/plug_FLRL.png`);
+        console.log('Charging - added plug_FLRL.png (FL + RL both open)');
+      } else {
+        // Individual door overlays
+        if (flOpen) {
+          layers.push(`${base}/plug_FL.png`);
+          console.log('Charging - added plug_FL.png overlay');
+        }
+        if (rlOpen) {
+          layers.push(`${base}/plug_RL.png`);
+          console.log('Charging - added plug_RL.png overlay');
+        }
+      }
+
+      // Add other doors (FR and RR always individual)
+      if (frOpen) {
+        layers.push(`${base}/plug_FR.png`);
+        console.log('Charging - added plug_FR.png overlay');
+      }
+      if (rrOpen) {
+        layers.push(`${base}/plug_RR.png`);
+        console.log('Charging - added plug_RR.png overlay');
+      }
+
+      // Step 3: Add trunk overlay (if open)
+      if (trunkOpen) {
+        layers.push(`${base}/plug_trunk.png`);
+        console.log('Charging - added plug_trunk.png overlay');
+      }
+
+      // Step 4: Add charging overlay on top (last layer)
       layers.push(`${base}/charging.png`);
-      console.log('Actively charging - added charging.png');
+      console.log('Charging - added charging.png on top');
+
       console.log('Charging - final layers:', layers);
       return layers;
     }
 
     // Plugged in but not charging
     if (chargeCable === 'on') {
-      layers.push(`${base}/plug.png`);
-      console.log('Cable plugged in (not charging) - added plug.png');
+      // Check door/trunk/frunk states
+      const trunkOpen = trunk === 'open';
+      const flOpen = fl === 'on';
+      const frOpen = fr === 'on';
+      const rlOpen = rl === 'on';
+      const rrOpen = rr === 'on';
+      const frunkOpen = frunk === 'open';
+
+      // Check if FL + RL are both open (special case to avoid overlap)
+      const flRlBothOpen = flOpen && rlOpen;
+
+      // Step 1: Select base image for plugged-in state
+      if (frunkOpen) {
+        layers.push(`${base}/frunk_base.png`);
+        console.log('Plugged in - added frunk_base.png as base');
+      } else {
+        layers.push(`${base}/plug.png`);
+        console.log('Plugged in - added plug.png as base');
+      }
+
+      // Step 2: Add plugged-in door overlays
+      // Special case: If both FL and RL are open, use plug_FLRL.png instead of individual overlays
+      if (flRlBothOpen) {
+        layers.push(`${base}/plug_FLRL.png`);
+        console.log('Plugged in - added plug_FLRL.png (FL + RL both open)');
+      } else {
+        // Individual door overlays
+        if (flOpen) {
+          layers.push(`${base}/plug_FL.png`);
+          console.log('Plugged in - added plug_FL.png overlay');
+        }
+        if (rlOpen) {
+          layers.push(`${base}/plug_RL.png`);
+          console.log('Plugged in - added plug_RL.png overlay');
+        }
+      }
+
+      // Add other doors (FR and RR always individual)
+      if (frOpen) {
+        layers.push(`${base}/plug_FR.png`);
+        console.log('Plugged in - added plug_FR.png overlay');
+      }
+      if (rrOpen) {
+        layers.push(`${base}/plug_RR.png`);
+        console.log('Plugged in - added plug_RR.png overlay');
+      }
+
+      // Step 3: Add trunk overlay (if open)
+      if (trunkOpen) {
+        layers.push(`${base}/plug_trunk.png`);
+        console.log('Plugged in - added plug_trunk.png overlay');
+      }
+
       console.log('Plugged in - final layers:', layers);
       return layers;
     }
